@@ -1,10 +1,11 @@
 #![feature(proc_macro_hygiene, decl_macro, int_roundings)]
 
-#[macro_use] extern crate rocket;
+#[macro_use]
+extern crate rocket;
 
-use std::{fs, io};
-use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::{fs, io};
 
 use deltalake;
 
@@ -19,7 +20,10 @@ fn is_delta(path: &PathBuf) -> bool {
     }
 }
 
-fn find_delta_tables<P>(root: P, tables: &mut HashMap<String, String>) where P:AsRef<Path>{
+fn find_delta_tables<P>(root: P, tables: &mut HashMap<String, String>)
+where
+    P: AsRef<Path>,
+{
     for e in fs::read_dir(root).unwrap() {
         let path = e.unwrap().path();
         let metadata = fs::metadata(&path).unwrap();
@@ -28,11 +32,15 @@ fn find_delta_tables<P>(root: P, tables: &mut HashMap<String, String>) where P:A
             if is_delta(&path) {
                 //insert to hashmap
                 tables.insert(
-                path.clone().file_name().unwrap().to_str().unwrap().to_string(), 
-                path.clone().to_str().unwrap().to_string()
+                    path.clone()
+                        .file_name()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .to_string(),
+                    path.clone().to_str().unwrap().to_string(),
                 );
-            }
-            else {
+            } else {
                 find_delta_tables(&path, tables);
             }
         }
@@ -40,18 +48,18 @@ fn find_delta_tables<P>(root: P, tables: &mut HashMap<String, String>) where P:A
 }
 
 #[get("/tables")]
-async fn get_tables() -> Json<HashMap<String,String>> {
+async fn get_tables() -> Json<HashMap<String, String>> {
     let mut tables: HashMap<String, String> = HashMap::new();
 
     let root = "./";
     find_delta_tables(root, &mut tables);
-    
+
     Json(tables)
 }
 
-#[get("/table/files")]
-async fn files() -> Json<Vec<String>> {
-    let uri = "./tests/data/simple_table";
+#[get("/table/<id>/files")]
+async fn files(id: String) -> Json<Vec<String>> {
+    let uri = "./tests/data/simple_table_with_checkpoint";
     let table = deltalake::open_table(uri).await.unwrap();
     let files = table.get_files().iter().map(|s| s.to_string()).collect();
     Json(files)
